@@ -1,0 +1,10 @@
+google-api-python-client
+dotenv
+pandas
+numpy
+requests
+emoji
+transformers
+scikit-learn
+torch
+gradio-client

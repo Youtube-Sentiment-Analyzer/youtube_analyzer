@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Sentiment Analyzer</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="extension-container">
+        <!-- Header with live stats -->
+        <header class="header">
+            <div class="header-left">
+                <div class="logo">
+                    <div class="logo-icon">📊</div>
+                    <span>Sentiment</span>
+                </div>
+                <div class="live-indicator">
+                    <div class="pulse-dot"></div>
+                    <span>LIVE</span>
+                </div>
+            </div>
+            <div class="header-stats">
+                <div class="stat-item">
+                    <span class="stat-value" id="totalCount">247</span>
+                    <span class="stat-label">TOTAL</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main dashboard grid -->
+        <div class="dashboard-grid">
+            <!-- Sentiment Overview Cards -->
+            <div class="sentiment-cards">
+                <div class="sentiment-card positive" data-sentiment="positive">
+                    <div class="card-icon">😊</div>
+                    <div class="card-content">
+                        <div class="card-value" id="positiveValue">156</div>
+                        <div class="card-label">POSITIVE</div>
+                        <div class="card-percent" id="positivePercent">63%</div>
+                    </div>
+                    <div class="card-trend">↗</div>
+                </div>
+
+                <div class="sentiment-card negative" data-sentiment="negative">
+                    <div class="card-icon">😠</div>
+                    <div class="card-content">
+                        <div class="card-value" id="negativeValue">67</div>
+                        <div class="card-label">NEGATIVE</div>
+                        <div class="card-percent" id="negativePercent">27%</div>
+                    </div>
+                    <div class="card-trend">↘</div>
+                </div>
+
+                <div class="sentiment-card neutral" data-sentiment="neutral">
+                    <div class="card-icon">😐</div>
+                    <div class="card-content">
+                        <div class="card-value" id="neutralValue">24</div>
+                        <div class="card-label">NEUTRAL</div>
+                        <div class="card-percent" id="neutralPercent">10%</div>
+                    </div>
+                    <div class="card-trend">→</div>
+                </div>
+            </div>
+
+            <!-- Visual Chart Section -->
+            <div class="chart-section">
+                <div class="chart-header">
+                    <h3>SENTIMENT FLOW</h3>
+                    <div class="chart-controls">
+                        <button class="chart-btn active" data-view="pie">PIE</button>
+                        <button class="chart-btn" data-view="bar">BAR</button>
+                        <button class="chart-btn" data-view="wave">WAVE</button>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="sentimentChart" width="280" height="160"></canvas>
+                    <div class="chart-overlay">
+                        <div class="chart-center-text">
+                            <div class="center-value">247</div>
+                            <div class="center-label">COMMENTS</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Comments Stream -->
+            <div class="summary-section">
+                <div class="summary-header">
+                    <h3>VIDEO SUMMARY</h3>
+                    <div class="summary-status" id="summaryStatus">
+                        <div class="status-dot"></div>
+                        <span>READY</span>
+                    </div>
+                </div>
+                <div class="summary-content" id="summaryContent">
+                    <p class="summary-text">Click "ANALYZE NOW" to generate an AI-powered summary of the video's comment sentiment and key themes.</p>
+                </div>
+            </div>
+
+            <!-- Comments Stream -->
+            <div class="comments-stream">
+                <div class="stream-header">
+                    <h3>LIVE COMMENTS</h3>
+                    <div class="stream-filters">
+                        <button class="filter-btn active" data-filter="all">ALL</button>
+                        <button class="filter-btn" data-filter="positive">+</button>
+                        <button class="filter-btn" data-filter="negative">-</button>
+                        <button class="filter-btn" data-filter="neutral">○</button>
+                    </div>
+                </div>
+                <div class="comments-list" id="commentsList">
+                    <!-- Comments will be populated here -->
+                </div>
+            </div>
+
+            <!-- Action Panel -->
+            <div class="action-panel">
+                <div class="emotion-bubbles">
+                    <div class="emotion-bubble joy" data-emotion="joy">
+                        <span class="bubble-emoji">😄</span>
+                        <span class="bubble-count">89</span>
+                    </div>
+                    <div class="emotion-bubble anger" data-emotion="anger">
+                        <span class="bubble-emoji">😡</span>
+                        <span class="bubble-count">34</span>
+                    </div>
+                    <div class="emotion-bubble surprise" data-emotion="surprise">
+                        <span class="bubble-emoji">😲</span>
+                        <span class="bubble-count">23</span>
+                    </div>
+                    <div class="emotion-bubble sadness" data-emotion="sadness">
+                        <span class="bubble-emoji">😢</span>
+                        <span class="bubble-count">18</span>
+                    </div>
+                </div>
+                
+                <button class="analyze-btn" id="analyzeBtn">
+                    <div class="btn-content">
+                        <span class="btn-text">ANALYZE NOW</span>
+                        <div class="btn-icon">⚡</div>
+                    </div>
+                    <div class="btn-progress" id="btnProgress"></div>
+                </button>
+
+                <div class="quick-stats">
+                    <div class="quick-stat">
+                        <span class="quick-label">AVG SENTIMENT</span>
+                        <span class="quick-value positive">+0.34</span>
+                    </div>
+                    <div class="quick-stat">
+                        <span class="quick-label">ENGAGEMENT</span>
+                        <span class="quick-value">HIGH</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Status Bar -->
+        <div class="status-bar">
+            <div class="status-left">
+                <div class="status-indicator processing" id="statusIndicator">
+                    <div class="status-dot"></div>
+                    <span id="statusText">READY TO ANALYZE</span>
+                </div>
+            </div>
+            <div class="status-right">
+                <span class="last-update">Updated 2s ago</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
