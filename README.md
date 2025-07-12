@@ -2,6 +2,11 @@
 
 A **Chrome extension** powered by a fine-tuned ensemble BERT model deployed on Hugging Face, designed to analyze the sentiment of YouTube comments in real-time. The system provides sentiment classification (neutral, positive, negative) and a summary of the comment section using advanced NLP techniques and APIs.
 
+## Architecture
+
+<img width="2456" height="1628" alt="Untitled-2025-07-09-1953" src="https://github.com/user-attachments/assets/3f2bb6a5-fc15-49d5-adcf-a57ebaa109ba" />
+
+
 ## Table of Contents
 
 - [Project Overview](#project-overview)
