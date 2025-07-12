@@ -1,21 +1,5 @@
-// Enhanced mock data with more variety
-const mockComments = [
-    { id: 1, text: "This is absolutely amazing! Love the content 🔥", sentiment: "positive", emotion: "joy", timestamp: "2m ago" },
-    { id: 2, text: "Terrible video, waste of my time", sentiment: "negative", emotion: "anger", timestamp: "3m ago" },
-    { id: 3, text: "Pretty decent explanation, could be better", sentiment: "neutral", emotion: "neutral", timestamp: "5m ago" },
-    { id: 4, text: "BEST TUTORIAL EVER! Thank you so much!", sentiment: "positive", emotion: "joy", timestamp: "7m ago" },
-    { id: 5, text: "I don't understand anything, so confusing", sentiment: "negative", emotion: "sadness", timestamp: "8m ago" },
-    { id: 6, text: "Wow, didn't expect that twist!", sentiment: "positive", emotion: "surprise", timestamp: "10m ago" },
-    { id: 7, text: "Meh, it's okay I guess", sentiment: "neutral", emotion: "neutral", timestamp: "12m ago" },
-    { id: 8, text: "This changed my perspective completely!", sentiment: "positive", emotion: "surprise", timestamp: "15m ago" },
-    { id: 9, text: "Boring content, unsubscribing", sentiment: "negative", emotion: "anger", timestamp: "18m ago" },
-    { id: 10, text: "Thanks for the tutorial, very helpful", sentiment: "positive", emotion: "joy", timestamp: "20m ago" },
-    { id: 11, text: "Could you make a part 2?", sentiment: "neutral", emotion: "neutral", timestamp: "22m ago" },
-    { id: 12, text: "This made me cry, so emotional", sentiment: "positive", emotion: "sadness", timestamp: "25m ago" },
-    { id: 13, text: "Clickbait title, disappointed", sentiment: "negative", emotion: "anger", timestamp: "28m ago" },
-    { id: 14, text: "Mind = blown 🤯", sentiment: "positive", emotion: "surprise", timestamp: "30m ago" },
-    { id: 15, text: "Average content, nothing special", sentiment: "neutral", emotion: "neutral", timestamp: "32m ago" }
-];
+// Empty initial state - no mock data
+const mockComments = [];
 
 class CompactSentimentAnalyzer {
     constructor() {
@@ -25,6 +9,7 @@ class CompactSentimentAnalyzer {
         this.currentFilter = 'all';
         this.chartView = 'pie';
         this.isAnalyzing = false;
+        this.hasAnalysisData = false; // Track if we have analysis data
         this.apiBaseUrl = 'http://localhost:5000/api';
         this.init();
     }
@@ -41,9 +26,9 @@ class CompactSentimentAnalyzer {
 
     setupEventListeners() {
         // Analyze button
-        document.getElementById('analyzeBtn').addEventListener('click', () => {
-            this.analyzeComments();
-            this.generateSummary();
+        document.getElementById('analyzeBtn').addEventListener('click', async () => {
+            await this.analyzeComments();
+            // Summary will be automatically updated by processAnalysisResults
         });
 
         // Sentiment cards
@@ -91,11 +76,8 @@ class CompactSentimentAnalyzer {
     }
 
     loadInitialData() {
-        // Count sentiments and emotions
-        this.comments.forEach(comment => {
-            this.sentimentCounts[comment.sentiment]++;
-            this.emotionCounts[comment.emotion]++;
-        });
+        // No initial data loading - start with empty state
+        // Data will be loaded when analysis is performed
     }
 
     initializeSummary() {
@@ -105,7 +87,7 @@ class CompactSentimentAnalyzer {
         `;
     }
 
-    generateSummary() {
+    async generateSummary() {
         const summaryStatus = document.getElementById('summaryStatus');
         const summaryContent = document.getElementById('summaryContent');
         
@@ -117,33 +99,83 @@ class CompactSentimentAnalyzer {
             <p class="summary-text">Analyzing comment patterns and generating insights...</p>
         `;
         
-        // Simulate API call
-        setTimeout(() => {
-            const totalComments = this.comments.length;
-            const positivePercent = Math.round((this.sentimentCounts.positive / totalComments) * 100);
-            const negativePercent = Math.round((this.sentimentCounts.negative / totalComments) * 100);
+        try {
+            // Get video ID from current YouTube page
+            const videoId = await this.getCurrentVideoId();
             
-            let overallTone = 'Mixed';
-            if (positivePercent > 60) overallTone = 'Positive';
-            else if (negativePercent > 40) overallTone = 'Critical';
+            if (!videoId) {
+                throw new Error('Could not detect YouTube video ID');
+            }
             
-            const keyThemes = ['Tutorial Quality', 'Content Clarity', 'Engagement', 'Helpfulness'];
-            const randomThemes = keyThemes.sort(() => 0.5 - Math.random()).slice(0, 3);
+            // Call backend API for analysis (which includes summary)
+            const response = await fetch(`${this.apiBaseUrl}/analyze`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    video_id: videoId,
+                    max_comments: 100
+                })
+            });
             
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to generate summary');
+            }
+            
+            const data = await response.json();
+            
+            // Update status to complete
             summaryStatus.className = 'summary-status complete';
             summaryStatus.innerHTML = '<div class="status-dot"></div><span>COMPLETE</span>';
             
+            // Display the summary data
+            if (data.summary && data.keywords) {
+                summaryContent.innerHTML = `
+                    <p class="summary-text">
+                        <strong>AI Summary:</strong><br>
+                        ${data.summary.replace(/\n/g, '<br>')}
+                    </p>
+                    <div class="summary-highlights">
+                        ${data.keywords.map(keyword => `<span class="summary-tag">${keyword}</span>`).join('')}
+                    </div>
+                `;
+            } else {
+                // Fallback if no summary data
+                const totalComments = data.total_comments || this.comments.length;
+                const positivePercent = data.sentiment_percentages?.positive || 0;
+                const negativePercent = data.sentiment_percentages?.negative || 0;
+                
+                let overallTone = 'Mixed';
+                if (positivePercent > 60) overallTone = 'Positive';
+                else if (negativePercent > 40) overallTone = 'Critical';
+                
+                summaryContent.innerHTML = `
+                    <p class="summary-text">
+                        <strong>Overall Tone:</strong> ${overallTone} (${positivePercent}% positive, ${negativePercent}% negative)<br>
+                        <strong>Engagement:</strong> High community interaction with ${totalComments} comments<br>
+                        <strong>Key Themes:</strong> Viewers appreciate the content quality and clarity
+                    </p>
+                    <div class="summary-highlights">
+                        <span class="summary-tag">Content Quality</span>
+                        <span class="summary-tag">Engagement</span>
+                        <span class="summary-tag">Community</span>
+                    </div>
+                `;
+            }
+            
+        } catch (error) {
+            console.error('Summary generation error:', error);
+            summaryStatus.className = 'summary-status error';
+            summaryStatus.innerHTML = '<div class="status-dot"></div><span>ERROR</span>';
+            
             summaryContent.innerHTML = `
-                <p class="summary-text">
-                    <strong>Overall Tone:</strong> ${overallTone} (${positivePercent}% positive, ${negativePercent}% negative)<br>
-                    <strong>Engagement:</strong> High community interaction with ${totalComments} comments<br>
-                    <strong>Key Themes:</strong> Viewers appreciate the content quality and clarity
+                <p class="summary-text" style="color: #ff4444;">
+                    Failed to generate summary: ${error.message}
                 </p>
-                <div class="summary-highlights">
-                    ${randomThemes.map(theme => `<span class="summary-tag">${theme}</span>`).join('')}
-                </div>
             `;
-        }, 2500);
+        }
     }
 
     updateAllStats() {
@@ -158,12 +190,13 @@ class CompactSentimentAnalyzer {
         document.getElementById('neutralValue').textContent = this.sentimentCounts.neutral;
 
         // Update percentages
-        document.getElementById('positivePercent').textContent = 
-            Math.round((this.sentimentCounts.positive / total) * 100) + '%';
-        document.getElementById('negativePercent').textContent = 
-            Math.round((this.sentimentCounts.negative / total) * 100) + '%';
-        document.getElementById('neutralPercent').textContent = 
-            Math.round((this.sentimentCounts.neutral / total) * 100) + '%';
+        const positivePercent = total > 0 ? Math.round((this.sentimentCounts.positive / total) * 100) : 0;
+        const negativePercent = total > 0 ? Math.round((this.sentimentCounts.negative / total) * 100) : 0;
+        const neutralPercent = total > 0 ? Math.round((this.sentimentCounts.neutral / total) * 100) : 0;
+        
+        document.getElementById('positivePercent').textContent = positivePercent + '%';
+        document.getElementById('negativePercent').textContent = negativePercent + '%';
+        document.getElementById('neutralPercent').textContent = neutralPercent + '%';
 
         // Update emotion bubbles
         document.querySelector('[data-emotion="joy"] .bubble-count').textContent = this.emotionCounts.joy;
@@ -172,9 +205,23 @@ class CompactSentimentAnalyzer {
         document.querySelector('[data-emotion="sadness"] .bubble-count').textContent = this.emotionCounts.sadness;
 
         // Update quick stats
-        const avgSentiment = (this.sentimentCounts.positive - this.sentimentCounts.negative) / total;
-        document.querySelector('.quick-value.positive').textContent = 
-            (avgSentiment > 0 ? '+' : '') + avgSentiment.toFixed(2);
+        const avgSentiment = total > 0 ? (this.sentimentCounts.positive - this.sentimentCounts.negative) / total : 0;
+        const avgSentimentText = total > 0 ? (avgSentiment > 0 ? '+' : '') + avgSentiment.toFixed(2) : '0.00';
+        document.querySelector('.quick-value.positive').textContent = avgSentimentText;
+        
+        // Update engagement level
+        const engagementElement = document.querySelector('.quick-value:not(.positive)');
+        if (engagementElement) {
+            if (total === 0) {
+                engagementElement.textContent = 'NONE';
+            } else if (total < 10) {
+                engagementElement.textContent = 'LOW';
+            } else if (total < 50) {
+                engagementElement.textContent = 'MEDIUM';
+            } else {
+                engagementElement.textContent = 'HIGH';
+            }
+        }
     }
 
     renderComments() {
@@ -183,6 +230,21 @@ class CompactSentimentAnalyzer {
         // Clear existing comments
         while (commentsList.firstChild) {
             commentsList.removeChild(commentsList.firstChild);
+        }
+
+        // If no analysis has been performed yet, show empty state
+        if (!this.hasAnalysisData) {
+            const emptyElement = document.createElement('div');
+            emptyElement.className = 'comment-item';
+            emptyElement.innerHTML = `
+                <div class="comment-content">
+                    <div class="comment-text" style="color: var(--text-muted); font-style: italic;">
+                        Click "ANALYZE NOW" to load comments
+                    </div>
+                </div>
+            `;
+            commentsList.appendChild(emptyElement);
+            return;
         }
 
         let filteredComments = this.comments;
@@ -214,8 +276,8 @@ class CompactSentimentAnalyzer {
             commentsList.appendChild(commentElement);
         });
         
-        // Add empty state if no comments
-        if (filteredComments.length === 0) {
+        // Add empty state if no comments match filter
+        if (filteredComments.length === 0 && this.hasAnalysisData) {
             const emptyElement = document.createElement('div');
             emptyElement.className = 'comment-item';
             emptyElement.innerHTML = `
@@ -536,6 +598,9 @@ class CompactSentimentAnalyzer {
     }
     
     processAnalysisResults(data) {
+        // Mark that we have analysis data
+        this.hasAnalysisData = true;
+        
         // Update comments with real data
         this.comments = data.comments.map(comment => ({
             id: comment.id,
@@ -570,6 +635,25 @@ class CompactSentimentAnalyzer {
         
         // Add visual feedback
         this.flashStats();
+        
+        // Update summary if data includes summary information
+        if (data.summary && data.keywords) {
+            const summaryStatus = document.getElementById('summaryStatus');
+            const summaryContent = document.getElementById('summaryContent');
+            
+            summaryStatus.className = 'summary-status complete';
+            summaryStatus.innerHTML = '<div class="status-dot"></div><span>COMPLETE</span>';
+            
+            summaryContent.innerHTML = `
+                <p class="summary-text">
+                    <strong>AI Summary:</strong><br>
+                    ${data.summary.replace(/\n/g, '<br>')}
+                </p>
+                <div class="summary-highlights">
+                    ${data.keywords.map(keyword => `<span class="summary-tag">${keyword}</span>`).join('')}
+                </div>
+            `;
+        }
         
         setTimeout(() => {
             statusText.textContent = 'READY TO ANALYZE';

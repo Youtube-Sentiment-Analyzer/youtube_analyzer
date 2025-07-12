@@ -101,6 +101,10 @@ def analyze_video():
         # 2. Get summary and keywords
         summary, keywords = summarize_and_extract_keywords(comments_data)
         
+        # Add summary and keywords to response data
+        response_data['summary'] = summary
+        response_data['keywords'] = keywords
+        
         return jsonify(response_data)
         
     except Exception as e:
