@@ -61,5 +61,5 @@ if __name__ == '__main__':
     video_id = 'OmtjAb0Dwsk'  # Replace with your actual video ID
 
     ingestor = DataIngestion()
-    df = ingestor.get_video_comments(video_id, max_comments=500)
+    df = ingestor.get_video_comments(video_id, max_comments)
     print(df.head())

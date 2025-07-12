@@ -25,6 +25,7 @@ class CompactSentimentAnalyzer {
         this.currentFilter = 'all';
         this.chartView = 'pie';
         this.isAnalyzing = false;
+        this.apiBaseUrl = 'http://localhost:5000/api';
         this.init();
     }
 
@@ -301,12 +302,14 @@ class CompactSentimentAnalyzer {
 
     drawPieChart(ctx, canvas) {
         const data = [
-            { label: 'Positive', value: this.sentimentCounts.positive, color: '#00ff66' },
-            { label: 'Negative', value: this.sentimentCounts.negative, color: '#ff4444' },
-            { label: 'Neutral', value: this.sentimentCounts.neutral, color: '#666666' }
+            { value: this.sentimentCounts.positive || 0, color: '#00ff66' },
+            { value: this.sentimentCounts.negative || 0, color: '#ff4444' },
+            { value: this.sentimentCounts.neutral || 0, color: '#666666' }
         ];
         
         const total = data.reduce((sum, item) => sum + item.value, 0);
+        if (total === 0) return; // Don't draw if no data
+        
         const centerX = canvas.width / 2;
         const centerY = canvas.height / 2;
         const radius = 50;
@@ -352,18 +355,20 @@ class CompactSentimentAnalyzer {
 
     drawBarChart(ctx, canvas) {
         const data = [
-            { label: 'Pos', value: this.sentimentCounts.positive, color: '#00ff66' },
-            { label: 'Neg', value: this.sentimentCounts.negative, color: '#ff4444' },
-            { label: 'Neu', value: this.sentimentCounts.neutral, color: '#666666' }
+            { value: this.sentimentCounts.positive || 0, color: '#00ff66' },
+            { value: this.sentimentCounts.negative || 0, color: '#ff4444' },
+            { value: this.sentimentCounts.neutral || 0, color: '#666666' }
         ];
         
         const maxValue = Math.max(...data.map(d => d.value));
+        if (maxValue === 0) return; // Don't draw if no data
+        
         const barWidth = 50;
         const barSpacing = 15;
         const startX = (canvas.width - (data.length * barWidth + (data.length - 1) * barSpacing)) / 2;
         
         data.forEach((item, index) => {
-            const barHeight = (item.value / maxValue) * 80;
+            const barHeight = maxValue > 0 ? (item.value / maxValue) * 80 : 0;
             const x = startX + index * (barWidth + barSpacing);
             const y = canvas.height - 30 - barHeight;
             
@@ -374,7 +379,6 @@ class CompactSentimentAnalyzer {
             
             // Draw glassy bar
             ctx.fillStyle = gradient;
-            ctx.roundRect(x, y, barWidth, barHeight, 4);
             ctx.fillRect(x, y, barWidth, barHeight);
             
             // Add glass effect
@@ -382,18 +386,20 @@ class CompactSentimentAnalyzer {
             ctx.lineWidth = 1;
             ctx.strokeRect(x, y, barWidth, barHeight);
             
-            // Draw label
-            ctx.fillStyle = item.color;
-            ctx.font = 'bold 9px Inter';
-            ctx.textAlign = 'center';
-            ctx.fillText(item.label, x + barWidth / 2, canvas.height - 15);
+            // No labels or numbers - minimal design
         });
     }
 
     drawWaveChart(ctx, canvas) {
-        const data = [this.sentimentCounts.positive, this.sentimentCounts.negative, this.sentimentCounts.neutral];
+        const data = [
+            this.sentimentCounts.positive || 0, 
+            this.sentimentCounts.negative || 0, 
+            this.sentimentCounts.neutral || 0
+        ];
         const colors = ['#00ff66', '#ff4444', '#666666'];
         const maxValue = Math.max(...data);
+        
+        if (maxValue === 0) return; // Don't draw if no data
         
         data.forEach((value, index) => {
             // Create gradient for wave
@@ -406,7 +412,7 @@ class CompactSentimentAnalyzer {
             ctx.lineWidth = 2;
             ctx.beginPath();
             
-            const amplitude = (value / maxValue) * 20;
+            const amplitude = maxValue > 0 ? (value / maxValue) * 20 : 0;
             const frequency = 0.03;
             const yOffset = 30 + index * 35;
             
@@ -429,7 +435,7 @@ class CompactSentimentAnalyzer {
         });
     }
 
-    analyzeComments() {
+    async analyzeComments() {
         if (this.isAnalyzing) return;
         
         this.isAnalyzing = true;
@@ -440,23 +446,177 @@ class CompactSentimentAnalyzer {
         
         // Update UI
         btn.classList.add('analyzing');
+        progress.style.width = '0%';
         statusIndicator.className = 'status-indicator processing';
         statusText.textContent = 'ANALYZING COMMENTS...';
         
-        // Simulate analysis
-        setTimeout(() => {
+        try {
+            // Get video ID from current YouTube page
+            const videoId = await this.getCurrentVideoId();
+            console.log('Analyzing video ID:', videoId);
+            
+            if (!videoId) {
+                throw new Error('Could not detect YouTube video ID. Make sure you are on a YouTube video page.');
+            }
+            
+            // Call backend API
+            const response = await fetch(`${this.apiBaseUrl}/analyze`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    video_id: videoId,
+                    max_comments: 100
+                })
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to analyze video');
+            }
+            
+            const data = await response.json();
+            console.log('Analysis results:', data);
+            
+            // Update progress to 100%
+            progress.style.width = '100%';
+            
+            // Process the real data
+            this.processAnalysisResults(data);
+            
+        } catch (error) {
+            console.error('Analysis error:', error);
+            statusText.textContent = 'ANALYSIS FAILED';
+            statusIndicator.className = 'status-indicator error';
+            
+            // Fallback to mock data
+            this.completeAnalysis();
+        } finally {
             this.isAnalyzing = false;
             btn.classList.remove('analyzing');
-            statusIndicator.className = 'status-indicator ready';
-            statusText.textContent = 'ANALYSIS COMPLETE';
+        }
+    }
+    
+    async getCurrentVideoId() {
+        try {
+            // Get the current active tab
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            const url = tab.url;
+            console.log('Current tab URL:', url);
             
-            // Add some visual feedback
-            this.flashStats();
+            // Standard YouTube URL pattern
+            const videoIdMatch = url.match(/[?&]v=([^&]+)/);
+            if (videoIdMatch) {
+                console.log('Found video ID from v parameter:', videoIdMatch[1]);
+                return videoIdMatch[1];
+            }
             
-            setTimeout(() => {
-                statusText.textContent = 'READY TO ANALYZE';
-            }, 3000);
-        }, 2000);
+            // Short YouTube URL pattern
+            const shortUrlMatch = url.match(/youtu\.be\/([^?]+)/);
+            if (shortUrlMatch) {
+                console.log('Found video ID from short URL:', shortUrlMatch[1]);
+                return shortUrlMatch[1];
+            }
+            
+            // YouTube embed URL pattern
+            const embedMatch = url.match(/embed\/([^?]+)/);
+            if (embedMatch) {
+                console.log('Found video ID from embed URL:', embedMatch[1]);
+                return embedMatch[1];
+            }
+            
+            console.log('Could not detect video ID from URL:', url);
+            return null;
+            
+        } catch (error) {
+            console.error('Error getting current tab URL:', error);
+            return null;
+        }
+    }
+    
+    processAnalysisResults(data) {
+        // Update comments with real data
+        this.comments = data.comments.map(comment => ({
+            id: comment.id,
+            text: comment.text,
+            sentiment: comment.sentiment,
+            emotion: this.mapSentimentToEmotion(comment.sentiment),
+            timestamp: this.formatTimestamp(comment.published_at),
+            author: comment.author,
+            likeCount: comment.like_count
+        }));
+        
+        // Update sentiment counts - ensure all values exist
+        this.sentimentCounts = {
+            positive: data.sentiment_counts.positive || 0,
+            negative: data.sentiment_counts.negative || 0,
+            neutral: data.sentiment_counts.neutral || 0
+        };
+        
+        // Update emotion counts based on sentiment
+        this.updateEmotionCounts();
+        
+        // Update UI
+        this.updateAllStats();
+        this.renderComments();
+        this.drawChart();
+        
+        // Update status
+        const statusIndicator = document.getElementById('statusIndicator');
+        const statusText = document.getElementById('statusText');
+        statusIndicator.className = 'status-indicator complete';
+        statusText.textContent = 'ANALYSIS COMPLETE';
+        
+        // Add visual feedback
+        this.flashStats();
+        
+        setTimeout(() => {
+            statusText.textContent = 'READY TO ANALYZE';
+        }, 3000);
+    }
+    
+    mapSentimentToEmotion(sentiment) {
+        const emotionMap = {
+            'positive': 'joy',
+            'negative': 'anger',
+            'neutral': 'neutral'
+        };
+        return emotionMap[sentiment] || 'neutral';
+    }
+    
+    formatTimestamp(timestamp) {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / (1000 * 60));
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        return `${diffDays}d ago`;
+    }
+    
+    updateEmotionCounts() {
+        this.emotionCounts = { joy: 0, anger: 0, surprise: 0, sadness: 0, neutral: 0 };
+        this.comments.forEach(comment => {
+            this.emotionCounts[comment.emotion]++;
+        });
+    }
+    
+    completeAnalysis() {
+        // Fallback method for when API fails
+        const statusIndicator = document.getElementById('statusIndicator');
+        const statusText = document.getElementById('statusText');
+        statusIndicator.className = 'status-indicator ready';
+        statusText.textContent = 'ANALYSIS COMPLETE';
+        
+        this.flashStats();
+        
+        setTimeout(() => {
+            statusText.textContent = 'READY TO ANALYZE';
+        }, 3000);
     }
 
     animateBubble(bubble) {

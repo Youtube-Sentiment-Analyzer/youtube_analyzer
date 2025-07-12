@@ -6,3 +6,5 @@ requests
 emoji
 scikit-learn
 gradio-client
+flask
+flask-cors
