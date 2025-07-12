@@ -5,6 +5,8 @@ import sys
 import json
 from datetime import datetime
 import pandas as pd
+from dotenv import load_dotenv
+load_dotenv()
 
 # Add the src directory to the path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src', 'components'))
@@ -12,6 +14,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'src', 'components'))
 from data_ingestion import DataIngestion
 from data_transformation import DataTransformation
 from model_evaluater import ModelEvaluator
+from summarizer import configure_gemini, summarize_and_extract_keywords, build_prompt_from_comments
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -35,7 +38,7 @@ def analyze_video():
     try:
         data = request.get_json()
         video_id = data.get('video_id')
-        max_comments = 10
+        max_comments = 30
         
         if not video_id:
             return jsonify({'error': 'Video ID is required'}), 400
@@ -91,6 +94,12 @@ def analyze_video():
             'comments': comments_data,
             'analyzed_at': datetime.now().isoformat()
         }
+        
+        # Step 1: Configure Gemini
+        configure_gemini(os.getenv("GOOGLE_API_KEY"))
+        
+        # 2. Get summary and keywords
+        summary, keywords = summarize_and_extract_keywords(comments_data)
         
         return jsonify(response_data)
         
