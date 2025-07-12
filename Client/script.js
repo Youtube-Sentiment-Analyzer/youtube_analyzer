@@ -2,6 +2,37 @@
 const mockComments = [];
 
 class CompactSentimentAnalyzer {
+    flashStats() {
+        document.querySelectorAll('.sentiment-card').forEach((card, index) => {
+            setTimeout(() => {
+                card.style.background = 'rgba(255, 68, 68, 0.1)';
+                card.style.transform = 'scale(1.05)';
+                setTimeout(() => {
+                    card.style.background = '';
+                    card.style.transform = '';
+                }, 300);
+            }, index * 100);
+        });
+    }
+
+    startLiveUpdates() {
+        // Simulate live comment updates
+        setInterval(() => {
+            if (!this.isAnalyzing) {
+                this.updateTimestamps();
+                this.animateRandomBubble();
+            }
+        }, 5000);
+
+        // Update chart animation for wave view
+        if (this.chartView === 'wave') {
+            setInterval(() => {
+                if (this.chartView === 'wave') {
+                    this.drawChart();
+                }
+            }, 50);
+        }
+    }
     constructor() {
         this.comments = [...mockComments];
         this.sentimentCounts = { positive: 0, negative: 0, neutral: 0 };
@@ -210,13 +241,14 @@ class CompactSentimentAnalyzer {
         document.querySelector('.quick-value.positive').textContent = avgSentimentText;
         
         // Update engagement level
+        const engagement_score = response.engagement_score;
         const engagementElement = document.querySelector('.quick-value:not(.positive)');
         if (engagementElement) {
-            if (total === 0) {
+            if (engagement_score === 0) {
                 engagementElement.textContent = 'NONE';
-            } else if (total < 10) {
+            } else if (engagement_score < 1) {
                 engagementElement.textContent = 'LOW';
-            } else if (total < 50) {
+            } else if (engagement_score < 5) {
                 engagementElement.textContent = 'MEDIUM';
             } else {
                 engagementElement.textContent = 'HIGH';
@@ -600,7 +632,10 @@ class CompactSentimentAnalyzer {
     processAnalysisResults(data) {
         // Mark that we have analysis data
         this.hasAnalysisData = true;
-        
+
+        // Store engagement score from backend
+        this.engagementScore = data.engagement_score || 0;
+
         // Update comments with real data
         this.comments = data.comments.map(comment => ({
             id: comment.id,
@@ -611,39 +646,39 @@ class CompactSentimentAnalyzer {
             author: comment.author,
             likeCount: comment.like_count
         }));
-        
+
         // Update sentiment counts - ensure all values exist
         this.sentimentCounts = {
             positive: data.sentiment_counts.positive || 0,
             negative: data.sentiment_counts.negative || 0,
             neutral: data.sentiment_counts.neutral || 0
         };
-        
+
         // Update emotion counts based on sentiment
         this.updateEmotionCounts();
-        
+
         // Update UI
         this.updateAllStats();
         this.renderComments();
         this.drawChart();
-        
+
         // Update status
         const statusIndicator = document.getElementById('statusIndicator');
         const statusText = document.getElementById('statusText');
         statusIndicator.className = 'status-indicator complete';
         statusText.textContent = 'ANALYSIS COMPLETE';
-        
+
         // Add visual feedback
         this.flashStats();
-        
+
         // Update summary if data includes summary information
         if (data.summary && data.keywords) {
             const summaryStatus = document.getElementById('summaryStatus');
             const summaryContent = document.getElementById('summaryContent');
-            
+
             summaryStatus.className = 'summary-status complete';
             summaryStatus.innerHTML = '<div class="status-dot"></div><span>COMPLETE</span>';
-            
+
             summaryContent.innerHTML = `
                 <p class="summary-text">
                     <strong>AI Summary:</strong><br>
@@ -654,7 +689,7 @@ class CompactSentimentAnalyzer {
                 </div>
             `;
         }
-        
+
         setTimeout(() => {
             statusText.textContent = 'READY TO ANALYZE';
         }, 3000);
@@ -695,64 +730,58 @@ class CompactSentimentAnalyzer {
         const statusText = document.getElementById('statusText');
         statusIndicator.className = 'status-indicator ready';
         statusText.textContent = 'ANALYSIS COMPLETE';
-        
+
         this.flashStats();
-        
+
         setTimeout(() => {
             statusText.textContent = 'READY TO ANALYZE';
         }, 3000);
     }
 
-    animateBubble(bubble) {
-        bubble.style.transform = 'scale(1.3) rotate(10deg)';
-        bubble.style.background = 'rgba(255, 68, 68, 0.1)';
-        
-        setTimeout(() => {
-            bubble.style.transform = '';
-            bubble.style.background = '';
-        }, 300);
-    }
+    updateAllStats() {
+        const total = this.comments.length;
 
-    highlightComment(comment) {
-        comment.style.background = 'rgba(255, 68, 68, 0.05)';
-        comment.style.borderLeft = '3px solid #ff4444';
-        
-        setTimeout(() => {
-            comment.style.background = '';
-            comment.style.borderLeft = '';
-        }, 1000);
-    }
+        // Update header total
+        document.getElementById('totalCount').textContent = total;
 
-    flashStats() {
-        document.querySelectorAll('.sentiment-card').forEach((card, index) => {
-            setTimeout(() => {
-                card.style.background = 'rgba(255, 68, 68, 0.1)';
-                card.style.transform = 'scale(1.05)';
-                
-                setTimeout(() => {
-                    card.style.background = '';
-                    card.style.transform = '';
-                }, 300);
-            }, index * 100);
-        });
-    }
+        // Update sentiment cards
+        document.getElementById('positiveValue').textContent = this.sentimentCounts.positive;
+        document.getElementById('negativeValue').textContent = this.sentimentCounts.negative;
+        document.getElementById('neutralValue').textContent = this.sentimentCounts.neutral;
 
-    startLiveUpdates() {
-        // Simulate live comment updates
-        setInterval(() => {
-            if (!this.isAnalyzing) {
-                this.updateTimestamps();
-                this.animateRandomBubble();
+        // Update percentages
+        const positivePercent = total > 0 ? Math.round((this.sentimentCounts.positive / total) * 100) : 0;
+        const negativePercent = total > 0 ? Math.round((this.sentimentCounts.negative / total) * 100) : 0;
+        const neutralPercent = total > 0 ? Math.round((this.sentimentCounts.neutral / total) * 100) : 0;
+
+        document.getElementById('positivePercent').textContent = positivePercent + '%';
+        document.getElementById('negativePercent').textContent = negativePercent + '%';
+        document.getElementById('neutralPercent').textContent = neutralPercent + '%';
+
+        // Update emotion bubbles
+        document.querySelector('[data-emotion="joy"] .bubble-count').textContent = this.emotionCounts.joy;
+        document.querySelector('[data-emotion="anger"] .bubble-count').textContent = this.emotionCounts.anger;
+        document.querySelector('[data-emotion="surprise"] .bubble-count').textContent = this.emotionCounts.surprise;
+        document.querySelector('[data-emotion="sadness"] .bubble-count').textContent = this.emotionCounts.sadness;
+
+        // Update quick stats
+        const avgSentiment = total > 0 ? (this.sentimentCounts.positive - this.sentimentCounts.negative) / total : 0;
+        const avgSentimentText = total > 0 ? (avgSentiment > 0 ? '+' : '') + avgSentiment.toFixed(2) : '0.00';
+        document.querySelector('.quick-value.positive').textContent = avgSentimentText;
+
+        // Update engagement level
+        const engagement_score = this.engagementScore || 0;
+        const engagementElement = document.querySelector('.quick-value:not(.positive)');
+        if (engagementElement) {
+            if (engagement_score === 0) {
+                engagementElement.textContent = 'NONE';
+            } else if (engagement_score < 1) {
+                engagementElement.textContent = 'LOW';
+            } else if (engagement_score < 5) {
+                engagementElement.textContent = 'MEDIUM';
+            } else {
+                engagementElement.textContent = 'HIGH';
             }
-        }, 5000);
-        
-        // Update chart animation for wave view
-        if (this.chartView === 'wave') {
-            setInterval(() => {
-                if (this.chartView === 'wave') {
-                    this.drawChart();
-                }
-            }, 50);
         }
     }
 

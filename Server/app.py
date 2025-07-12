@@ -14,7 +14,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'src', 'components'))
 from data_ingestion import DataIngestion
 from data_transformation import DataTransformation
 from model_evaluater import ModelEvaluator
-from summarizer import configure_gemini, summarize_and_extract_keywords, build_prompt_from_comments
+from summarizer import configure_gemini, summarize_and_extract_keywords, build_prompt_from_comments, calculate_engagement_score
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -38,7 +38,7 @@ def analyze_video():
     try:
         data = request.get_json()
         video_id = data.get('video_id')
-        max_comments = 30
+        max_comments = 5
         
         if not video_id:
             return jsonify({'error': 'Video ID is required'}), 400
@@ -46,6 +46,9 @@ def analyze_video():
         # Step 1: Fetch comments
         print(f"Fetching comments for video: {video_id}")
         df = data_ingestor.get_video_comments(video_id, max_comments)
+        
+        views, likes, comments = data_ingestor.get_video_engagement_metrics(video_id)
+        engagement_score = calculate_engagement_score(views, likes, comments)
         
         if df.empty:
             return jsonify({'error': 'No comments found for this video'}), 404
@@ -104,6 +107,7 @@ def analyze_video():
         # Add summary and keywords to response data
         response_data['summary'] = summary
         response_data['keywords'] = keywords
+        response_data['engagement_score'] = engagement_score
         
         return jsonify(response_data)
         

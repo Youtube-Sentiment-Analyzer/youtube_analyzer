@@ -48,7 +48,13 @@ def summarize_and_extract_keywords(comments_data):
         summary = text  # fallback if format deviates
 
     return summary, keywords
+def calculate_engagement_score(views, likes, comments):
+    if views == 0:
+        return 0  # avoid division by zero
 
+    # Weigh likes and comments differently if you want
+    score = (likes + 2 * comments) / views * 100  # as percentage
+    return round(score, 2)
 if __name__ == "__main__":
     # Step 1: Configure Gemini
     configure_gemini(os.getenv("GOOGLE_API_KEY"))

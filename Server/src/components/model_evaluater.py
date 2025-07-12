@@ -3,7 +3,6 @@ import pandas as pd
 from gradio_client import Client  # type: ignore
 from data_ingestion import DataIngestion
 from data_transformation import DataTransformation
-
 class ModelEvaluator:
     def __init__(self):
         """
@@ -48,6 +47,7 @@ class ModelEvaluator:
                 })
 
         return results
+    
 
 
 if __name__ == '__main__':

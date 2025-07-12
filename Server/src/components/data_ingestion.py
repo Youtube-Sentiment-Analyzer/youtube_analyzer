@@ -54,6 +54,21 @@ class DataIngestion:
                 break
 
         return pd.DataFrame(comments)
+    
+    
+    def get_video_engagement_metrics(self,video_id):
+        response = self.youtube.videos().list(
+            part='statistics',
+            id=video_id
+        ).execute()
+
+        stats = response['items'][0]['statistics']
+        
+        views = int(stats.get('viewCount', 0))
+        likes = int(stats.get('likeCount', 0))
+        comments = int(stats.get('commentCount', 0))
+        
+        return views, likes, comments
 
 
 # ▶️ Example usage
