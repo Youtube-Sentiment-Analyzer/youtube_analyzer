@@ -4,7 +4,5 @@ pandas
 numpy
 requests
 emoji
-transformers
 scikit-learn
-torch
 gradio-client
